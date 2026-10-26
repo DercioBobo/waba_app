@@ -1,0 +1,152 @@
+{
+ "actions": [],
+ "creation": "2026-10-26 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "enabled",
+  "sb_account",
+  "graph_api_version",
+  "phone_number_id",
+  "waba_id",
+  "cb_account",
+  "access_token",
+  "app_secret",
+  "verify_token",
+  "sb_flows",
+  "invoice_flow_id",
+  "flow_mode",
+  "cb_flows",
+  "invoice_keywords",
+  "sb_erp",
+  "company",
+  "cb_erp",
+  "default_country_code"
+ ],
+ "fields": [
+  {
+   "default": "0",
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "label": "Enabled",
+   "description": "When off, the webhook still answers Meta's verification but ignores incoming notifications."
+  },
+  {
+   "fieldname": "sb_account",
+   "fieldtype": "Section Break",
+   "label": "WhatsApp Business Account"
+  },
+  {
+   "default": "v25.0",
+   "fieldname": "graph_api_version",
+   "fieldtype": "Data",
+   "label": "Graph API Version",
+   "reqd": 1
+  },
+  {
+   "fieldname": "phone_number_id",
+   "fieldtype": "Data",
+   "label": "Phone Number ID",
+   "description": "Default sender. Replies always go out from the number that received the message."
+  },
+  {
+   "fieldname": "waba_id",
+   "fieldtype": "Data",
+   "label": "WABA ID"
+  },
+  {
+   "fieldname": "cb_account",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "access_token",
+   "fieldtype": "Password",
+   "label": "Access Token",
+   "length": 1000
+  },
+  {
+   "fieldname": "app_secret",
+   "fieldtype": "Password",
+   "label": "App Secret",
+   "description": "Used to verify the X-Hub-Signature-256 header. When set, unsigned or badly signed requests are rejected."
+  },
+  {
+   "fieldname": "verify_token",
+   "fieldtype": "Data",
+   "label": "Verify Token",
+   "description": "Any string you choose; type the same value in the Meta webhook configuration."
+  },
+  {
+   "fieldname": "sb_flows",
+   "fieldtype": "Section Break",
+   "label": "Flows"
+  },
+  {
+   "fieldname": "invoice_flow_id",
+   "fieldtype": "Data",
+   "label": "Invoice Flow ID"
+  },
+  {
+   "default": "draft",
+   "fieldname": "flow_mode",
+   "fieldtype": "Select",
+   "label": "Flow Mode",
+   "options": "draft\npublished",
+   "description": "Use draft while the flow is not published in WhatsApp Manager."
+  },
+  {
+   "fieldname": "cb_flows",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "facturas,faturas,invoice",
+   "fieldname": "invoice_keywords",
+   "fieldtype": "Small Text",
+   "label": "Invoice Keywords",
+   "description": "Comma-separated. Matched case-insensitively against the whole message."
+  },
+  {
+   "fieldname": "sb_erp",
+   "fieldtype": "Section Break",
+   "label": "ERPNext"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Company",
+   "description": "Optional. Only invoices of this company are offered."
+  },
+  {
+   "fieldname": "cb_erp",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "258",
+   "fieldname": "default_country_code",
+   "fieldtype": "Data",
+   "label": "Default Country Code",
+   "reqd": 1,
+   "description": "Digits only, without + or 00."
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-10-26 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "WABA App",
+ "name": "WABA Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "read": 1,
+   "role": "System Manager",
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

@@ -1,0 +1,84 @@
+{
+  "version": "7.3",
+  "screens": [
+    {
+      "id": "FACTURAS",
+      "title": "Facturas pendentes",
+      "terminal": true,
+      "success": true,
+      "data": {
+        "saudacao": {
+          "type": "string",
+          "__example__": "Olá Cliente Exemplo, estas são as tuas facturas pendentes."
+        },
+        "facturas": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "title": { "type": "string" },
+              "description": { "type": "string" }
+            }
+          },
+          "__example__": [
+            {
+              "id": "ACC-SINV-2026-00001",
+              "title": "ACC-SINV-2026-00001",
+              "description": "MZN 12.500,00 · vence 15/11/2026"
+            },
+            {
+              "id": "ACC-SINV-2026-00002",
+              "title": "ACC-SINV-2026-00002",
+              "description": "MZN 3.200,00 · vence 30/11/2026"
+            }
+          ]
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextSubheading",
+            "text": "${data.saudacao}"
+          },
+          {
+            "type": "Form",
+            "name": "form",
+            "children": [
+              {
+                "type": "RadioButtonsGroup",
+                "name": "factura",
+                "label": "Factura",
+                "required": true,
+                "data-source": "${data.facturas}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "accao",
+                "label": "O que queres fazer?",
+                "required": true,
+                "data-source": [
+                  { "id": "pdf", "title": "Receber PDF" },
+                  { "id": "detalhes", "title": "Ver detalhes" },
+                  { "id": "pagar", "title": "Pagar" }
+                ]
+              },
+              {
+                "type": "Footer",
+                "label": "Continuar",
+                "on-click-action": {
+                  "name": "complete",
+                  "payload": {
+                    "factura": "${form.factura}",
+                    "accao": "${form.accao}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

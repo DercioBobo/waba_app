@@ -1,0 +1,139 @@
+# Copyright (c) 2026, Dércio Bobo and contributors
+# For license information, please see license.txt
+
+import json
+from unittest.mock import MagicMock, patch
+
+import frappe
+from frappe.tests.utils import FrappeTestCase
+
+from waba_app.services import invoice_flow
+from waba_app.tests.utils import make_settings
+
+WA_ID = "258841234567"
+
+
+def nfm(response_json):
+	return {
+		"from": WA_ID,
+		"id": "wamid.3",
+		"type": "interactive",
+		"interactive": {"type": "nfm_reply", "nfm_reply": {"name": "flow", "response_json": response_json}},
+	}
+
+
+class TestParseFlowResponse(FrappeTestCase):
+	def test_decodes_string(self):
+		data = {"flow_token": "tok", "factura": "SINV-1", "accao": "pdf"}
+		self.assertEqual(invoice_flow.parse_flow_response(nfm(json.dumps(data))), data)
+
+	def test_invalid_payloads(self):
+		for message in (nfm(None), nfm(""), nfm("{not json"), nfm("[1, 2]"), {"type": "interactive"}, {}):
+			with self.subTest(message=message):
+				with self.assertRaises(ValueError):
+					invoice_flow.parse_flow_response(message)
+
+
+class TestOwnership(FrappeTestCase):
+	def invoice(self, **overrides):
+		values = {
+			"name": "SINV-1",
+			"customer": "CUST-A",
+			"company": "Test Co",
+			"docstatus": 1,
+			"outstanding_amount": 100.0,
+		}
+		values.update(overrides)
+		return frappe._dict(values)
+
+	def check(self, stored, invoice_name="SINV-1", customer="CUST-A", company=None):
+		with patch("waba_app.services.invoice_flow.frappe.db.get_value", return_value=stored):
+			return invoice_flow.get_owned_outstanding_invoice(invoice_name, customer, company)
+
+	def test_owned_and_outstanding(self):
+		self.assertEqual(self.check(self.invoice()).name, "SINV-1")
+		self.assertEqual(self.check(self.invoice(), company="Test Co").name, "SINV-1")
+
+	def test_other_customer(self):
+		self.assertIsNone(self.check(self.invoice(customer="CUST-B")))
+
+	def test_not_submitted(self):
+		self.assertIsNone(self.check(self.invoice(docstatus=0)))
+		self.assertIsNone(self.check(self.invoice(docstatus=2)))
+
+	def test_paid_or_credit(self):
+		self.assertIsNone(self.check(self.invoice(outstanding_amount=0)))
+		self.assertIsNone(self.check(self.invoice(outstanding_amount=-50)))
+
+	def test_other_company(self):
+		self.assertIsNone(self.check(self.invoice(), company="Another Co"))
+
+	def test_missing_or_bad_input(self):
+		self.assertIsNone(self.check(None))
+		self.assertIsNone(self.check(self.invoice(), invoice_name=None))
+		self.assertIsNone(self.check(self.invoice(), invoice_name={"$ne": ""}))
+		self.assertIsNone(self.check(self.invoice(), customer=None))
+
+
+class TestHandleFlowReply(FrappeTestCase):
+	def setUp(self):
+		patch("waba_app.services.invoice_flow.get_settings", return_value=make_settings()).start()
+		self.reply = patch("waba_app.services.invoice_flow.reply").start()
+		self.perform = patch("waba_app.services.invoice_flow.perform_action", return_value="pdf").start()
+		self.addCleanup(patch.stopall)
+
+	def session(self, **overrides):
+		values = {"status": "Sent", "wa_id": WA_ID, "customer": "CUST-A"}
+		values.update(overrides)
+		return MagicMock(**values)
+
+	def run_reply(self, session, invoice, response=None):
+		response = response or {"flow_token": "tok", "factura": "SINV-1", "accao": "pdf"}
+		with (
+			patch("waba_app.services.invoice_flow.frappe.db.exists", return_value=session is not None),
+			patch("waba_app.services.invoice_flow.frappe.get_doc", return_value=session),
+			patch("waba_app.services.invoice_flow.get_owned_outstanding_invoice", return_value=invoice),
+		):
+			return invoice_flow.handle_flow_reply(WA_ID, nfm(json.dumps(response)), phone_number_id="999")
+
+	def test_valid_reply_performs_action_and_completes(self):
+		session = self.session()
+		result = self.run_reply(session, frappe._dict(name="SINV-1"))
+		self.assertEqual(result, "pdf")
+		self.perform.assert_called_once_with("pdf", "SINV-1", WA_ID, "999")
+		values = session.db_set.call_args.args[0]
+		self.assertEqual(values["status"], "Completed")
+		self.assertIn("SINV-1", values["response_json"])
+
+	def test_invoice_no_longer_owned(self):
+		session = self.session()
+		self.assertEqual(self.run_reply(session, None), "unavailable")
+		self.perform.assert_not_called()
+		self.reply.assert_called_once_with(WA_ID, invoice_flow.TEXT_UNAVAILABLE, "999")
+		session.db_set.assert_called_once()
+
+	def test_missing_session_is_ignored(self):
+		self.assertEqual(self.run_reply(None, frappe._dict(name="SINV-1")), "ignored")
+		self.perform.assert_not_called()
+
+	def test_completed_session_is_ignored(self):
+		session = self.session(status="Completed")
+		self.assertEqual(self.run_reply(session, frappe._dict(name="SINV-1")), "ignored")
+		self.perform.assert_not_called()
+		session.db_set.assert_not_called()
+
+	def test_session_of_another_number_is_ignored(self):
+		session = self.session(wa_id="258820000000")
+		self.assertEqual(self.run_reply(session, frappe._dict(name="SINV-1")), "ignored")
+		self.perform.assert_not_called()
+
+
+class TestInvoiceOption(FrappeTestCase):
+	def test_shape(self):
+		option = invoice_flow.invoice_option(
+			{"name": "ACC-SINV-2026-00001", "currency": "MZN", "outstanding_amount": 1250, "due_date": "2026-11-15"}
+		)
+		self.assertEqual(option["id"], "ACC-SINV-2026-00001")
+		self.assertEqual(option["title"], "ACC-SINV-2026-00001")
+		self.assertTrue(option["description"].startswith("MZN "))
+		self.assertTrue(option["description"].endswith("· vence 15/11/2026"))
