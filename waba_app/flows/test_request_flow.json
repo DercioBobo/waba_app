@@ -1,0 +1,291 @@
+{
+  "version": "7.3",
+  "screens": [
+    {
+      "id": "INICIO",
+      "title": "Novo pedido",
+      "data": {
+        "nome_sugerido": {
+          "type": "string",
+          "__example__": "Cliente Exemplo"
+        },
+        "categorias": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "title": { "type": "string" }
+            }
+          },
+          "__example__": [
+            { "id": "Suporte técnico", "title": "Suporte técnico" },
+            { "id": "Comercial", "title": "Comercial" }
+          ]
+        },
+        "periodos": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "title": { "type": "string" }
+            }
+          },
+          "__example__": [
+            { "id": "Manhã", "title": "Manhã" },
+            { "id": "Tarde", "title": "Tarde" }
+          ]
+        },
+        "opcoes_extras": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "title": { "type": "string" }
+            }
+          },
+          "__example__": [
+            { "id": "urgente", "title": "É urgente" },
+            { "id": "ligar", "title": "Prefiro que me liguem" }
+          ]
+        },
+        "data_minima": {
+          "type": "string",
+          "__example__": "2026-10-28"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextSubheading",
+            "text": "Passo 1 de 3 · Quem és e o que precisas"
+          },
+          {
+            "type": "Form",
+            "name": "form",
+            "init-values": {
+              "nome": "${data.nome_sugerido}"
+            },
+            "children": [
+              {
+                "type": "TextInput",
+                "name": "nome",
+                "label": "Nome",
+                "input-type": "text",
+                "required": true
+              },
+              {
+                "type": "Dropdown",
+                "name": "categoria",
+                "label": "Categoria",
+                "required": true,
+                "data-source": "${data.categorias}"
+              },
+              {
+                "type": "Footer",
+                "label": "Seguinte",
+                "on-click-action": {
+                  "name": "navigate",
+                  "next": { "type": "screen", "name": "DETALHES" },
+                  "payload": {
+                    "nome": "${form.nome}",
+                    "categoria": "${form.categoria}",
+                    "periodos": "${data.periodos}",
+                    "opcoes_extras": "${data.opcoes_extras}",
+                    "data_minima": "${data.data_minima}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "DETALHES",
+      "title": "Detalhes",
+      "data": {
+        "nome": {
+          "type": "string",
+          "__example__": "Cliente Exemplo"
+        },
+        "categoria": {
+          "type": "string",
+          "__example__": "Suporte técnico"
+        },
+        "periodos": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "title": { "type": "string" }
+            }
+          },
+          "__example__": [
+            { "id": "Manhã", "title": "Manhã" },
+            { "id": "Tarde", "title": "Tarde" }
+          ]
+        },
+        "opcoes_extras": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "title": { "type": "string" }
+            }
+          },
+          "__example__": [
+            { "id": "urgente", "title": "É urgente" },
+            { "id": "ligar", "title": "Prefiro que me liguem" }
+          ]
+        },
+        "data_minima": {
+          "type": "string",
+          "__example__": "2026-10-28"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextSubheading",
+            "text": "Passo 2 de 3 · Quando e como"
+          },
+          {
+            "type": "Form",
+            "name": "form",
+            "children": [
+              {
+                "type": "DatePicker",
+                "name": "data_preferida",
+                "label": "Data preferida",
+                "required": true,
+                "min-date": "${data.data_minima}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "periodo",
+                "label": "Período",
+                "required": true,
+                "data-source": "${data.periodos}"
+              },
+              {
+                "type": "CheckboxGroup",
+                "name": "extras",
+                "label": "Extras (opcional)",
+                "required": false,
+                "data-source": "${data.opcoes_extras}"
+              },
+              {
+                "type": "TextArea",
+                "name": "notas",
+                "label": "Notas (opcional)",
+                "required": false,
+                "max-length": 500
+              },
+              {
+                "type": "Footer",
+                "label": "Seguinte",
+                "on-click-action": {
+                  "name": "navigate",
+                  "next": { "type": "screen", "name": "CONFIRMAR" },
+                  "payload": {
+                    "nome": "${data.nome}",
+                    "categoria": "${data.categoria}",
+                    "data_preferida": "${form.data_preferida}",
+                    "periodo": "${form.periodo}",
+                    "extras": "${form.extras}",
+                    "notas": "${form.notas}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "CONFIRMAR",
+      "title": "Confirmar",
+      "terminal": true,
+      "success": true,
+      "data": {
+        "nome": {
+          "type": "string",
+          "__example__": "Cliente Exemplo"
+        },
+        "categoria": {
+          "type": "string",
+          "__example__": "Suporte técnico"
+        },
+        "data_preferida": {
+          "type": "string",
+          "__example__": "2026-11-03"
+        },
+        "periodo": {
+          "type": "string",
+          "__example__": "Manhã"
+        },
+        "extras": {
+          "type": "array",
+          "items": { "type": "string" },
+          "__example__": ["urgente"]
+        },
+        "notas": {
+          "type": "string",
+          "__example__": "Ligar antes de vir."
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextSubheading",
+            "text": "Passo 3 de 3 · Confirma o pedido"
+          },
+          { "type": "TextCaption", "text": "Nome" },
+          { "type": "TextBody", "text": "${data.nome}" },
+          { "type": "TextCaption", "text": "Categoria" },
+          { "type": "TextBody", "text": "${data.categoria}" },
+          { "type": "TextCaption", "text": "Data" },
+          { "type": "TextBody", "text": "${data.data_preferida}" },
+          { "type": "TextCaption", "text": "Período" },
+          { "type": "TextBody", "text": "${data.periodo}" },
+          {
+            "type": "Form",
+            "name": "form",
+            "children": [
+              {
+                "type": "OptIn",
+                "name": "aceita_contacto",
+                "label": "Aceito ser contactado por WhatsApp",
+                "required": false
+              },
+              {
+                "type": "Footer",
+                "label": "Enviar pedido",
+                "on-click-action": {
+                  "name": "complete",
+                  "payload": {
+                    "nome": "${data.nome}",
+                    "categoria": "${data.categoria}",
+                    "data_preferida": "${data.data_preferida}",
+                    "periodo": "${data.periodo}",
+                    "extras": "${data.extras}",
+                    "notas": "${data.notas}",
+                    "aceita_contacto": "${form.aceita_contacto}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

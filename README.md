@@ -17,7 +17,9 @@ waba_app/
 ├── services/
 │   ├── whatsapp.py       # Graph API client: send_text, send_flow, upload_media, send_document
 │   ├── handlers.py       # background job: idempotency, rate limit, routing
-│   ├── invoice_flow.py   # start_invoice_flow, handle_flow_reply and the invoice actions
+│   ├── flows.py          # shared: sessions, start_flow, nfm_reply dispatch by flow type
+│   ├── invoice_flow.py   # start_invoice_flow + invoice actions
+│   ├── request_flow.py   # multi-screen test flow -> WABA Test Request
 │   ├── customers.py      # phone normalisation + Customer lookup
 │   ├── logs.py           # WABA Message Log writes and status updates
 │   ├── messaging.py      # best-effort text replies
@@ -85,8 +87,13 @@ from WABA Settings, then subscribe to the **messages** field.
 
 ### Option B — per-WABA override (`override_callback_uri`)
 
-Useful when the app already has a callback (e.g. production) and the test WABA should
-deliver to the sandbox:
+> **If production already runs on a Meta app, don't use this — create a separate Meta
+> app for the sandbox instead.** Running this with the production WABA ID redirects all
+> production traffic. Never subscribe the production WABA to the sandbox app either.
+> As an extra guard, the app ignores notifications for any `phone_number_id` other than
+> the one in WABA Settings.
+
+Only for a WABA that no other system depends on:
 
 ```bash
 curl -X POST "https://graph.facebook.com/v25.0/<WABA_ID>/subscribed_apps" \
@@ -149,6 +156,41 @@ The flow is static: the invoice list is injected in the message at send time
 sends an `nfm_reply` whose `response_json` carries `flow_token`, `factura` and `accao`.
 The app re-checks that the invoice still belongs to the session's customer and is unpaid
 before doing anything.
+
+## Multi-screen test flow
+
+A static, three-screen flow that creates a **WABA Test Request**. It doesn't touch real
+ERPNext data.
+
+```
+INICIO (nome, categoria) ──navigate──▶ DETALHES (data, período, extras, notas) ──navigate──▶ CONFIRMAR (opt-in) ──complete──▶ nfm_reply
+```
+
+- **"GET"**: the categories (from **WABA Test Category**), the periods (the options of
+  *WABA Test Request → Period*) and the extras are loaded from ERPNext when the flow is
+  sent. Each `navigate` payload passes them, together with the values already entered,
+  to the next screen. That is how a static flow shares data between screens.
+- **"POST"**: `complete` sends everything back as an `nfm_reply`. The server checks
+  every field again (category exists and is enabled, period is valid, date is not in the
+  past, extras are known ids, texts are trimmed and limited) before creating the request.
+  The customer then receives `Pedido WTR-00001 registado`.
+
+Setup:
+
+1. Create a few categories, or seed them from the browser console:
+   `frappe.call("waba_app.api.dev.seed_test_categories")`
+2. In WhatsApp Manager, create a new flow, paste
+   [`waba_app/flows/test_request_flow.json`](waba_app/flows/test_request_flow.json), and
+   copy its ID into **WABA Settings → Test Request Flow ID**.
+3. Send **`teste`** from your phone (keywords: *Test Request Keywords*), or
+   `frappe.call("waba_app.api.dev.send_test_request_flow", { phone: "84 123 4567" })`.
+
+If the Flow Builder rejects the dynamic `init-values` on the first screen's Form (used to
+prefill the name from the matched Customer), delete the `init-values` block. The flow
+works without it.
+
+New flow types plug in through `services/flows.py`: call `start_flow(...)` to send, and
+register a reply handler in `REPLY_HANDLERS`.
 
 ## Manual trigger
 

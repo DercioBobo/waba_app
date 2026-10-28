@@ -16,8 +16,10 @@
   "sb_flows",
   "invoice_flow_id",
   "flow_mode",
+  "test_request_flow_id",
   "cb_flows",
   "invoice_keywords",
+  "test_request_keywords",
   "sb_erp",
   "company",
   "cb_erp",
@@ -95,6 +97,12 @@
    "description": "Use draft while the flow is not published in WhatsApp Manager."
   },
   {
+   "fieldname": "test_request_flow_id",
+   "fieldtype": "Data",
+   "label": "Test Request Flow ID",
+   "description": "Multi-screen test flow (flows/test_request_flow.json)."
+  },
+  {
    "fieldname": "cb_flows",
    "fieldtype": "Column Break"
   },
@@ -104,6 +112,13 @@
    "fieldtype": "Small Text",
    "label": "Invoice Keywords",
    "description": "Comma-separated. Matched case-insensitively against the whole message."
+  },
+  {
+   "default": "teste,test",
+   "fieldname": "test_request_keywords",
+   "fieldtype": "Small Text",
+   "label": "Test Request Keywords",
+   "description": "Comma-separated. Starts the multi-screen test flow."
   },
   {
    "fieldname": "sb_erp",
@@ -133,7 +148,7 @@
  "index_web_pages_for_search": 0,
  "issingle": 1,
  "links": [],
- "modified": "2026-10-26 00:00:00.000000",
+ "modified": "2026-10-28 00:00:00.000000",
  "modified_by": "Administrator",
  "module": "WABA App",
  "name": "WABA Settings",

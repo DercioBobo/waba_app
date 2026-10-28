@@ -12,8 +12,8 @@ class FakeSettings(frappe._dict):
 	def get_password(self, fieldname, raise_exception=True):
 		return self.get(f"_{fieldname}")
 
-	def get_invoice_keywords(self):
-		return parse_keywords(self.invoice_keywords)
+	def get_keywords(self, fieldname):
+		return parse_keywords(self.get(fieldname))
 
 
 def make_settings(**overrides) -> FakeSettings:
@@ -28,6 +28,8 @@ def make_settings(**overrides) -> FakeSettings:
 		"invoice_flow_id": "333333333333333",
 		"flow_mode": "draft",
 		"invoice_keywords": "facturas,faturas,invoice",
+		"test_request_flow_id": "444444444444444",
+		"test_request_keywords": "teste,test",
 		"company": None,
 		"default_country_code": "258",
 	}

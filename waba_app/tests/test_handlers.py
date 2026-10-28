@@ -1,7 +1,7 @@
 # Copyright (c) 2026, Dércio Bobo and contributors
 # For license information, please see license.txt
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from frappe.tests.utils import FrappeTestCase
 
@@ -18,13 +18,19 @@ def text(body):
 
 class TestKeywordRouting(FrappeTestCase):
 	def setUp(self):
-		self.patches = {
-			name: patch(f"waba_app.services.handlers.{name}")
-			for name in ("start_invoice_flow", "handle_flow_reply", "reply")
+		self.mocks = {
+			name: patch(f"waba_app.services.handlers.{name}").start() for name in ("handle_flow_reply", "reply")
 		}
-		self.mocks = {name: p.start() for name, p in self.patches.items()}
-		settings = patch("waba_app.services.handlers.get_settings", return_value=make_settings())
-		settings.start()
+		self.mocks["start_invoice_flow"] = MagicMock()
+		self.mocks["start_test_request_flow"] = MagicMock()
+		patch(
+			"waba_app.services.handlers.KEYWORD_FLOWS",
+			(
+				("invoice_keywords", self.mocks["start_invoice_flow"]),
+				("test_request_keywords", self.mocks["start_test_request_flow"]),
+			),
+		).start()
+		patch("waba_app.services.handlers.get_settings", return_value=make_settings()).start()
 		self.addCleanup(patch.stopall)
 
 	def test_keyword_starts_invoice_flow(self):
@@ -34,6 +40,12 @@ class TestKeywordRouting(FrappeTestCase):
 				handlers.route_message(WA_ID, text(body), PNID)
 				self.mocks["start_invoice_flow"].assert_called_once_with(WA_ID, phone_number_id=PNID)
 		self.mocks["reply"].assert_not_called()
+		self.mocks["start_test_request_flow"].assert_not_called()
+
+	def test_keyword_starts_test_request_flow(self):
+		handlers.route_message(WA_ID, text(" Teste "), PNID)
+		self.mocks["start_test_request_flow"].assert_called_once_with(WA_ID, phone_number_id=PNID)
+		self.mocks["start_invoice_flow"].assert_not_called()
 
 	def test_keyword_inside_sentence_gets_help(self):
 		handlers.route_message(WA_ID, text("quero as facturas"), PNID)
@@ -63,13 +75,22 @@ class TestKeywordRouting(FrappeTestCase):
 		self.mocks["start_invoice_flow"].assert_not_called()
 
 
-class TestIsInvoiceKeyword(FrappeTestCase):
+class TestIsKeyword(FrappeTestCase):
 	def test_matching(self):
 		keywords = {"facturas", "invoice"}
-		self.assertTrue(handlers.is_invoice_keyword(" FACTURAS ", keywords))
-		self.assertFalse(handlers.is_invoice_keyword("factura", keywords))
-		self.assertFalse(handlers.is_invoice_keyword("", keywords))
-		self.assertFalse(handlers.is_invoice_keyword(None, keywords))
+		self.assertTrue(handlers.is_keyword(" FACTURAS ", keywords))
+		self.assertFalse(handlers.is_keyword("factura", keywords))
+		self.assertFalse(handlers.is_keyword("", keywords))
+		self.assertFalse(handlers.is_keyword(None, keywords))
+
+
+class TestIsOwnNumber(FrappeTestCase):
+	def test_only_configured_number(self):
+		self.assertTrue(handlers.is_own_number("111", "111"))
+		self.assertFalse(handlers.is_own_number("222", "111"))
+		self.assertFalse(handlers.is_own_number(None, "111"))
+		self.assertFalse(handlers.is_own_number("111", ""))
+		self.assertFalse(handlers.is_own_number("111", None))
 
 
 class TestIterMessageChanges(FrappeTestCase):

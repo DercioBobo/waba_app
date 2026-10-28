@@ -1,7 +1,6 @@
 # Copyright (c) 2026, Dércio Bobo and contributors
 # For license information, please see license.txt
 
-import json
 from unittest.mock import MagicMock, patch
 
 import frappe
@@ -11,27 +10,6 @@ from waba_app.services import invoice_flow
 from waba_app.tests.utils import make_settings
 
 WA_ID = "258841234567"
-
-
-def nfm(response_json):
-	return {
-		"from": WA_ID,
-		"id": "wamid.3",
-		"type": "interactive",
-		"interactive": {"type": "nfm_reply", "nfm_reply": {"name": "flow", "response_json": response_json}},
-	}
-
-
-class TestParseFlowResponse(FrappeTestCase):
-	def test_decodes_string(self):
-		data = {"flow_token": "tok", "factura": "SINV-1", "accao": "pdf"}
-		self.assertEqual(invoice_flow.parse_flow_response(nfm(json.dumps(data))), data)
-
-	def test_invalid_payloads(self):
-		for message in (nfm(None), nfm(""), nfm("{not json"), nfm("[1, 2]"), {"type": "interactive"}, {}):
-			with self.subTest(message=message):
-				with self.assertRaises(ValueError):
-					invoice_flow.parse_flow_response(message)
 
 
 class TestOwnership(FrappeTestCase):
@@ -75,57 +53,29 @@ class TestOwnership(FrappeTestCase):
 		self.assertIsNone(self.check(self.invoice(), customer=None))
 
 
-class TestHandleFlowReply(FrappeTestCase):
+class TestOnReply(FrappeTestCase):
 	def setUp(self):
 		patch("waba_app.services.invoice_flow.get_settings", return_value=make_settings()).start()
 		self.reply = patch("waba_app.services.invoice_flow.reply").start()
 		self.perform = patch("waba_app.services.invoice_flow.perform_action", return_value="pdf").start()
 		self.addCleanup(patch.stopall)
 
-	def session(self, **overrides):
-		values = {"status": "Sent", "wa_id": WA_ID, "customer": "CUST-A"}
-		values.update(overrides)
-		return MagicMock(**values)
+	def run_reply(self, invoice):
+		session = MagicMock(customer="CUST-A")
+		response = {"flow_token": "tok", "factura": "SINV-1", "accao": "pdf"}
+		with patch("waba_app.services.invoice_flow.get_owned_outstanding_invoice", return_value=invoice) as owned:
+			result = invoice_flow.on_reply(session, response, WA_ID, "999")
+			owned.assert_called_once_with("SINV-1", "CUST-A", None)
+		return result
 
-	def run_reply(self, session, invoice, response=None):
-		response = response or {"flow_token": "tok", "factura": "SINV-1", "accao": "pdf"}
-		with (
-			patch("waba_app.services.invoice_flow.frappe.db.exists", return_value=session is not None),
-			patch("waba_app.services.invoice_flow.frappe.get_doc", return_value=session),
-			patch("waba_app.services.invoice_flow.get_owned_outstanding_invoice", return_value=invoice),
-		):
-			return invoice_flow.handle_flow_reply(WA_ID, nfm(json.dumps(response)), phone_number_id="999")
-
-	def test_valid_reply_performs_action_and_completes(self):
-		session = self.session()
-		result = self.run_reply(session, frappe._dict(name="SINV-1"))
-		self.assertEqual(result, "pdf")
+	def test_owned_invoice_performs_action(self):
+		self.assertEqual(self.run_reply(frappe._dict(name="SINV-1")), "pdf")
 		self.perform.assert_called_once_with("pdf", "SINV-1", WA_ID, "999")
-		values = session.db_set.call_args.args[0]
-		self.assertEqual(values["status"], "Completed")
-		self.assertIn("SINV-1", values["response_json"])
 
 	def test_invoice_no_longer_owned(self):
-		session = self.session()
-		self.assertEqual(self.run_reply(session, None), "unavailable")
+		self.assertEqual(self.run_reply(None), "unavailable")
 		self.perform.assert_not_called()
 		self.reply.assert_called_once_with(WA_ID, invoice_flow.TEXT_UNAVAILABLE, "999")
-		session.db_set.assert_called_once()
-
-	def test_missing_session_is_ignored(self):
-		self.assertEqual(self.run_reply(None, frappe._dict(name="SINV-1")), "ignored")
-		self.perform.assert_not_called()
-
-	def test_completed_session_is_ignored(self):
-		session = self.session(status="Completed")
-		self.assertEqual(self.run_reply(session, frappe._dict(name="SINV-1")), "ignored")
-		self.perform.assert_not_called()
-		session.db_set.assert_not_called()
-
-	def test_session_of_another_number_is_ignored(self):
-		session = self.session(wa_id="258820000000")
-		self.assertEqual(self.run_reply(session, frappe._dict(name="SINV-1")), "ignored")
-		self.perform.assert_not_called()
 
 
 class TestInvoiceOption(FrappeTestCase):

@@ -18,13 +18,17 @@ class WABASettings(Document):
 		if not self.default_country_code:
 			frappe.throw(_("Default Country Code must contain digits"))
 
-		for fieldname in ("phone_number_id", "waba_id", "verify_token", "invoice_flow_id"):
+		for fieldname in ("phone_number_id", "waba_id", "verify_token", "invoice_flow_id", "test_request_flow_id"):
 			self.set(fieldname, (self.get(fieldname) or "").strip())
 
-		self.invoice_keywords = ",".join(sorted(parse_keywords(self.invoice_keywords)))
+		for fieldname in KEYWORD_FIELDS:
+			self.set(fieldname, ",".join(sorted(parse_keywords(self.get(fieldname)))))
 
-	def get_invoice_keywords(self) -> set[str]:
-		return parse_keywords(self.invoice_keywords)
+	def get_keywords(self, fieldname: str) -> set[str]:
+		return parse_keywords(self.get(fieldname))
+
+
+KEYWORD_FIELDS = ("invoice_keywords", "test_request_keywords")
 
 
 def parse_keywords(text: str | None) -> set[str]:
